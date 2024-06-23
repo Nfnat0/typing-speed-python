@@ -1,0 +1,69 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: "AWS::Serverless-2016-10-31"
+Description: Typing Speed Backend
+
+Globals:
+  Api:
+    Cors:
+      AllowOrigin: "'https://d1vklekig7eztq.cloudfront.net'"
+      AllowMethods: "'PUT, OPTIONS'"
+      AllowCredentials: true
+      AllowHeaders: "'Content-Type,X-CSRF-TOKEN'"
+  Function:
+    Timeout: 30
+    MemorySize: 128
+
+Resources:
+  TypingSpeedData:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: TypingSpeedData
+      AttributeDefinitions:
+        - AttributeName: UserID
+          AttributeType: S
+      KeySchema:
+        - AttributeName: UserID
+          KeyType: HASH
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+
+  TypingSpeedFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: app.lambda_handler
+      Runtime: python3.12
+      Architectures:
+        - x86_64
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref TypingSpeedData
+          ALLOWED_ORIGIN: "https://d1vklekig7eztq.cloudfront.net"
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref TypingSpeedData
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Path: /update-typing-speed
+            Method: put
+      Layers:
+        - !Ref LibraryLayer
+
+  LibraryLayer:
+    Type: "AWS::Serverless::LayerVersion"
+    Properties:
+      LayerName: library-layer
+      Description: Layer with Boto3 and other dependencies
+      ContentUri: layer/
+      CompatibleRuntimes:
+        - python3.12
+    Metadata:
+      BuildMethod: python3.12 # Build methodを指定
+
+Outputs:
+  TypingSpeedApi:
+    Description: "API Gateway endpoint URL for Typing Speed function"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/update-typing-speed/"

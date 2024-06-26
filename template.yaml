@@ -6,12 +6,21 @@ Globals:
   Api:
     Cors:
       AllowOrigin: "'https://d1vklekig7eztq.cloudfront.net'"
-      AllowMethods: "'PUT, OPTIONS'"
+      AllowMethods: "'PUT, OPTIONS, GET'"
       AllowCredentials: true
       AllowHeaders: "'Content-Type,X-CSRF-TOKEN'"
   Function:
     Timeout: 30
     MemorySize: 128
+    CodeUri: src/
+    Runtime: python3.12
+    Architectures:
+      - x86_64
+    Layers:
+      - !Ref LibraryLayer
+    Environment:
+      Variables:
+        ALLOWED_ORIGIN: "https://d1vklekig7eztq.cloudfront.net"
 
 Resources:
   TypingSpeedData:
@@ -31,15 +40,10 @@ Resources:
   TypingSpeedFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: src/
-      Handler: app.lambda_handler
-      Runtime: python3.12
-      Architectures:
-        - x86_64
+      Handler: score.app.lambda_handler
       Environment:
         Variables:
           TABLE_NAME: !Ref TypingSpeedData
-          ALLOWED_ORIGIN: "https://d1vklekig7eztq.cloudfront.net"
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref TypingSpeedData
@@ -49,21 +53,68 @@ Resources:
           Properties:
             Path: /update-typing-speed
             Method: put
-      Layers:
-        - !Ref LibraryLayer
+
+  NewsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: news.app.lambda_handler
+      Role: !GetAtt NewsFunctionRole.Arn
+      Environment:
+        Variables:
+          PARAMETER_NAME: "NEWS_API_KEY"
+          S3_BUCKET_NAME: "mna-news-storing-bucket"
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - s3:PutObject
+              Resource: arn:aws:s3:::mna-news-storing-bucket/*
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Path: /fetch-news
+            Method: get
 
   LibraryLayer:
     Type: "AWS::Serverless::LayerVersion"
     Properties:
       LayerName: library-layer
-      Description: Layer with Boto3 and other dependencies
+      Description: Layer with dependencies
       ContentUri: layer/
       CompatibleRuntimes:
         - python3.12
     Metadata:
-      BuildMethod: python3.12 # Build methodを指定
+      BuildMethod: python3.12
+
+  NewsFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service:
+                - "lambda.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      Policies:
+        - PolicyName: "NewsFunctionPolicy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: "Allow"
+                Action:
+                  - "ssm:GetParameter"
+                Resource:
+                  - "arn:aws:ssm:ap-northeast-1:637423363957:parameter/NEWS_API_KEY"
 
 Outputs:
   TypingSpeedApi:
     Description: "API Gateway endpoint URL for Typing Speed function"
     Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/update-typing-speed/"
+
+  NewsApi:
+    Description: "API Gateway endpoint URL for News function"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/fetch-news/"

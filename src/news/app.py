@@ -45,10 +45,10 @@ def lambda_handler(event, context):
     file_content = "\n".join(titles)
 
     # Get the current time for the file name
-    execution_time = datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')
+    execution_time = datetime.now(timezone.utc).strftime('%Y%m%d')
 
     # Define the file name
-    file_name = f"latest_news_{execution_time}.txt"
+    file_name = f"{execution_time}.txt"
 
     # Get the S3 bucket name from the environment variables
     s3_bucket_name = os.environ['S3_BUCKET_NAME']

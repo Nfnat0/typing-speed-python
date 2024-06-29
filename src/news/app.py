@@ -2,7 +2,8 @@ import json
 import requests
 import boto3
 import os
-from datetime import datetime, timezone
+import pytz
+from datetime import datetime
 import logging
 
 # Set up logging
@@ -10,6 +11,7 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 ALLOWED_ORIGIN = os.environ['ALLOWED_ORIGIN']
+TIME_ZONE = os.environ['TIME_ZONE']
 
 
 def lambda_handler(event, context):
@@ -61,7 +63,8 @@ def lambda_handler(event, context):
         file_content = "\n".join(titles)
 
         # Get the current time for the file name
-        execution_time = datetime.now(timezone.utc).strftime('%Y/%m/%d')
+        tz = pytz.timezone(TIME_ZONE)
+        execution_time = datetime.now(tz).strftime('%Y/%m/%d')
 
         # Define the file name
         file_name = f"{execution_time}/{genre}.txt"

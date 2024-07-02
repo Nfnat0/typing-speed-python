@@ -28,7 +28,8 @@ def lambda_handler(event, context):
     response = ssm.get_parameter(Name=parameter_name, WithDecryption=True)
     api_key = response['Parameter']['Value']
 
-    genres = ["business", "science", "technology"]
+    genres = ["business", "science", "technology",
+              "general", "entertainment", "health"]
     logger.info(f"Fetching news for genres: {genres}")
 
     s3_bucket_name = os.environ['S3_BUCKET_NAME']
